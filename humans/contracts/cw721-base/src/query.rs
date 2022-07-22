@@ -11,7 +11,7 @@ use cw721::{
 use cw_storage_plus::Bound;
 use cw_utils::maybe_addr;
 
-use crate::msg::{MinterResponse, QueryMsg};
+use crate::msg::{AdminResponse, MinterResponse, QueryMsg};
 use crate::state::{Approval, Cw721Contract, TokenInfo};
 
 const DEFAULT_LIMIT: u32 = 10;
@@ -217,9 +217,17 @@ where
         })
     }
 
+    pub fn admin(&self, deps: Deps) -> StdResult<AdminResponse> {
+        let admin_addr = self.admin.load(deps.storage)?;
+        Ok(AdminResponse {
+            admin: admin_addr.to_string(),
+        })
+    }
+
     pub fn query(&self, deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         match msg {
             QueryMsg::Minter {} => to_binary(&self.minter(deps)?),
+            QueryMsg::Admin {} => to_binary(&self.admin(deps)?),
             QueryMsg::ContractInfo {} => to_binary(&self.contract_info(deps)?),
             QueryMsg::NftInfo { token_id } => to_binary(&self.nft_info(deps, token_id)?),
             QueryMsg::OwnerOf {

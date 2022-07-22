@@ -15,6 +15,8 @@ pub struct InstantiateMsg {
     /// This is designed for a base NFT that is controlled by an external program
     /// or contract. You will likely replace this with custom logic in custom NFTs
     pub minter: String,
+
+    pub admin: String,
 }
 
 /// This is like Cw721ExecuteMsg but we add a Mint command for an owner
@@ -55,6 +57,12 @@ pub enum ExecuteMsg<T> {
 
     /// Burn an NFT the sender has access to
     Burn { token_id: String },
+
+    /// Update minter
+    UpdateMinter { minter: String },
+
+    /// Update admin
+    UpdateAdmin { admin: String },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -142,10 +150,16 @@ pub enum QueryMsg {
 
     // Return the minter
     Minter {},
+    Admin {},
 }
 
 /// Shows who can mint these tokens
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct MinterResponse {
     pub minter: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct AdminResponse {
+    pub admin: String,
 }

@@ -34,7 +34,10 @@ where
         };
         self.contract_info.save(deps.storage, &info)?;
         let minter = deps.api.addr_validate(&msg.minter)?;
+        let admin = deps.api.addr_validate(&msg.admin)?;
+
         self.minter.save(deps.storage, &minter)?;
+        self.admin.save(deps.storage, &admin)?;
         Ok(Response::default())
     }
 
@@ -69,6 +72,8 @@ where
                 msg,
             } => self.send_nft(deps, env, info, contract, token_id, msg),
             ExecuteMsg::Burn { token_id } => self.burn(deps, env, info, token_id),
+            ExecuteMsg::UpdateMinter { minter } => self.update_minter(deps, env, info, minter),
+            ExecuteMsg::UpdateAdmin { admin } => self.update_admin(deps, env, info, admin),
         }
     }
 }
@@ -394,5 +399,44 @@ where
             }
             None => Err(ContractError::Unauthorized {}),
         }
+    }
+
+    fn update_minter(
+        &self,
+        deps: DepsMut,
+        _env: Env,
+        info: MessageInfo,
+        new_minter: String,
+    ) -> Result<Response<C>, ContractError> {
+        let admin = self.admin.load(deps.storage)?;
+
+        if info.sender != admin {
+            return Err(ContractError::Unauthorized {});
+        }
+
+        let new_minter_addr = deps.api.addr_validate(&new_minter)?;
+        self.minter.save(deps.storage, &new_minter_addr)?;
+        // self.minter.save(deps.storage, &new_minter_addr)?;
+        Ok(Response::new().add_attribute("minter", new_minter_addr))
+    }
+
+    fn update_admin(
+        &self,
+        deps: DepsMut,
+        _env: Env,
+        info: MessageInfo,
+        new_admin: String,
+    ) -> Result<Response<C>, ContractError> {
+        let admin = self.admin.load(deps.storage)?;
+
+        if info.sender != admin {
+            return Err(ContractError::Unauthorized {});
+        }
+
+        let new_admin_addr = deps.api.addr_validate(&new_admin)?;
+        self.admin.save(deps.storage, &new_admin_addr)?;
+
+        // self.minter.save(deps.storage, &new_minter_addr)?;
+        Ok(Response::new().add_attribute("admin", new_admin_addr))
     }
 }
