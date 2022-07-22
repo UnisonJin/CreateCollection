@@ -14,6 +14,7 @@ use crate::{
 const MINTER: &str = "merlin";
 const CONTRACT_NAME: &str = "Magic Power";
 const SYMBOL: &str = "MGK";
+const ADMIN: &str = "admin";
 
 fn setup_contract(deps: DepsMut<'_>) -> Cw721Contract<'static, Extension, Empty> {
     let contract = Cw721Contract::default();
@@ -21,6 +22,7 @@ fn setup_contract(deps: DepsMut<'_>) -> Cw721Contract<'static, Extension, Empty>
         name: CONTRACT_NAME.to_string(),
         symbol: SYMBOL.to_string(),
         minter: String::from(MINTER),
+        admin: String::from(ADMIN),
     };
     let info = mock_info("creator", &[]);
     let res = contract.instantiate(deps, mock_env(), info, msg).unwrap();
@@ -37,6 +39,7 @@ fn proper_instantiation() {
         name: CONTRACT_NAME.to_string(),
         symbol: SYMBOL.to_string(),
         minter: String::from(MINTER),
+        admin: String::from(ADMIN),
     };
     let info = mock_info("creator", &[]);
 
@@ -49,6 +52,10 @@ fn proper_instantiation() {
     // it worked, let's query the state
     let res = contract.minter(deps.as_ref()).unwrap();
     assert_eq!(MINTER, res.minter);
+
+    let res = contract.admin(deps.as_ref()).unwrap();
+    assert_eq!(ADMIN, res.admin);
+
     let info = contract.contract_info(deps.as_ref()).unwrap();
     assert_eq!(
         info,
@@ -748,4 +755,58 @@ fn query_tokens_by_owner() {
         .tokens(deps.as_ref(), demeter, Some(by_demeter[0].clone()), Some(3))
         .unwrap();
     assert_eq!(&by_demeter[1..], &tokens.tokens[..]);
+}
+
+#[test]
+fn update_minter() {
+    let mut deps = mock_dependencies();
+    let contract = setup_contract(deps.as_mut());
+
+    const NEW_MINTER: &str = "jack";
+    let update_minter_msg = ExecuteMsg::UpdateMinter {
+        minter: String::from(NEW_MINTER),
+    };
+
+    // random cannot mint
+    let random = mock_info("random", &[]);
+    let err = contract
+        .execute(deps.as_mut(), mock_env(), random, update_minter_msg.clone())
+        .unwrap_err();
+    assert_eq!(err, ContractError::Unauthorized {});
+
+    let random = mock_info("admin", &[]);
+    contract
+        .execute(deps.as_mut(), mock_env(), random, update_minter_msg.clone())
+        .unwrap();
+
+    let res = contract.minter(deps.as_ref()).unwrap();
+
+    assert_eq!(NEW_MINTER, res.minter);
+}
+
+#[test]
+fn update_admin() {
+    let mut deps = mock_dependencies();
+    let contract = setup_contract(deps.as_mut());
+
+    const NEW_ADMIN: &str = "tony";
+    let update_admin_msg = ExecuteMsg::UpdateAdmin {
+        admin: String::from(NEW_ADMIN),
+    };
+
+    // random cannot mint
+    let random = mock_info("merlin", &[]);
+    let err = contract
+        .execute(deps.as_mut(), mock_env(), random, update_admin_msg.clone())
+        .unwrap_err();
+    assert_eq!(err, ContractError::Unauthorized {});
+
+    let random = mock_info("admin", &[]);
+    contract
+        .execute(deps.as_mut(), mock_env(), random, update_admin_msg.clone())
+        .unwrap();
+
+    let res = contract.admin(deps.as_ref()).unwrap();
+
+    assert_eq!(NEW_ADMIN, res.admin);
 }
