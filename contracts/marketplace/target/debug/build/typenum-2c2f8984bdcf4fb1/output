@@ -1,2 +1,0 @@
-cargo:rustc-env=TYPENUM_BUILD_CONSTS=e:\Terra\MarketPlace\target\debug\build\typenum-2c2f8984bdcf4fb1\out\consts.rs
-cargo:rustc-env=TYPENUM_BUILD_OP=e:\Terra\MarketPlace\target\debug\build\typenum-2c2f8984bdcf4fb1\out\op.rs
