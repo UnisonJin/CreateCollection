@@ -1,1 +1,1 @@
--Mint contract
+This is the vault contract
