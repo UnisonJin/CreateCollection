@@ -2,8 +2,8 @@ use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 use std::env::current_dir;
 use std::fs::create_dir_all;
 
-use Juno_Punks::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use Juno_Punks::state::State;
+use human_mint::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use human_mint::state::State;
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
