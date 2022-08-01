@@ -2,14 +2,15 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::error::ContractError;
-use cosmwasm_std::{Addr, Api, Coin, Decimal, StdResult, Storage};
+use cosmwasm_std::{Addr, Api, Coin, Decimal, StdResult, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
-    pub num_offerings: u64,
+    
     pub fee: Decimal,
     pub owner: Addr,
+    pub tvl:Uint128
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -21,14 +22,18 @@ pub struct Offering {
 }
 
 pub const STATE: Item<State> = Item::new("state");
-pub const OFFERINGS: Map<&str, Offering> = Map::new("offerings");
+pub const OFFERINGS: Map<(&str,&str), Offering> = Map::new("offerings");
+pub const SALEHISTORY : Map<(&str,&str),SaleHistoryInfo> = Map::new("sale history");
+pub const COLLECTIONINFO : Map<&str,CollectionInfo> = Map::new("collection_info");
 
-pub fn increment_offerings(store: &mut dyn Storage) -> Result<u64, ContractError> {
+
+pub fn increment_offerings(store: &mut dyn Storage,address:String) -> Result<u64, ContractError> {
     let mut num = 0;
-    STATE.update(store, |mut state| -> Result<_, ContractError> {
-        state.num_offerings += 1;
-        num = state.num_offerings;
-        Ok(state)
+    COLLECTIONINFO.update(store,&address ,| collection_info| -> Result<_, ContractError> {
+        let mut collection_info = collection_info.unwrap();
+        collection_info.num_offerings += 1;
+        num = collection_info.num_offerings;
+        Ok(collection_info)
     })?;
 
     Ok(num)
@@ -46,4 +51,25 @@ pub fn get_fund(funds: Vec<Coin>, denom: String) -> Result<Coin, ContractError> 
 
 pub fn maybe_addr(api: &dyn Api, human: Option<String>) -> StdResult<Option<Addr>> {
     human.map(|x| api.addr_validate(&x)).transpose()
+}
+
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct SaleHistoryInfo {
+    pub from :String,
+    pub to: String,
+    pub denom:String,
+    pub amount:Uint128,
+    pub time : u64,
+    pub nft_address:String,
+    pub token_id:String
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CollectionInfo{
+    pub sale_id : u64,
+    pub tvl: Uint128,
+    pub num_offerings: u64,
 }

@@ -13,9 +13,11 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     Buy {
         offering_id: String,
+        address:String
     },
     WithdrawNft {
         offering_id: String,
+        address:String
     },
     ReceiveNft(Cw721ReceiveMsg),
     /// only admin.
@@ -27,6 +29,10 @@ pub enum ExecuteMsg {
     ChangeFee {
         fee: Decimal,
     },
+    //only admin
+    AddCollection{
+        address:String
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -38,21 +44,17 @@ pub struct SellNft {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    GetCount {},
+    GetStateInfo{},
+    GetCollectionInfo{address:String},
     GetFee {},
     /// With Enumerable extension.
     /// Requires pagination. Lists all offers controlled by the contract.
     /// Return type: OffersResponse.
-    AllOffers {
+    GetOffers {
         start_after: Option<String>,
         limit: Option<u32>,
+        address:String
     },
-}
-
-// We define a custom struct for each query response
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct CountResponse {
-    pub count: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
