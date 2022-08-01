@@ -6,10 +6,10 @@ use cosmwasm_std::{
 use crate::cw721::{Cw721ExecuteMsg, Cw721ReceiveMsg};
 use crate::error::ContractError;
 use crate::msg::{
-    CountResponse, ExecuteMsg, FeeResponse, InstantiateMsg, Offer, OffersResponse, QueryMsg,
+     ExecuteMsg, FeeResponse, InstantiateMsg, Offer, OffersResponse, QueryMsg,
     SellNft,
 };
-use crate::state::{get_fund, increment_offerings, Offering, State, OFFERINGS, STATE};
+use crate::state::{get_fund, increment_offerings, Offering, State, OFFERINGS, STATE, CollectionInfo, COLLECTIONINFO, SALEHISTORY,SaleHistoryInfo};
 use cw2::set_contract_version;
 use cw_storage_plus::Bound;
 use std::ops::{Mul, Sub};
@@ -31,9 +31,9 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let state = State {
-        num_offerings: 0,
         fee: msg.fee,
         owner: info.sender,
+        tvl: Uint128::zero()
     };
     STATE.save(deps.storage, &state)?;
 
@@ -44,36 +44,40 @@ pub fn instantiate(
 #[entry_point]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Buy { offering_id } => execute_buy(deps, info, offering_id),
-        ExecuteMsg::WithdrawNft { offering_id } => execute_withdraw(deps, info, offering_id),
+        ExecuteMsg::Buy { offering_id,address } => execute_buy(deps,env, info, offering_id,address),
+        ExecuteMsg::WithdrawNft { offering_id,address } => execute_withdraw(deps, info, offering_id,address),
         ExecuteMsg::ReceiveNft(msg) => execute_receive_nft(deps, info, msg),
         ExecuteMsg::WithdrawFees { amount, denom } => {
             execute_withdraw_fees(deps, info, amount, denom)
         }
         ExecuteMsg::ChangeFee { fee } => execute_change_fee(deps, info, fee),
+        ExecuteMsg::AddCollection { address } => execute_add_collection(deps, info, address)
     }
 }
 
 pub fn execute_buy(
     deps: DepsMut,
+    env:Env,
     info: MessageInfo,
     offering_id: String,
+    address:String
 ) -> Result<Response, ContractError> {
     // check if offering exists
-    let off = OFFERINGS.load(deps.storage, &offering_id)?;
+    let collection_info =  is_registered_collection(deps.as_ref(), &address)?;
+    let off = OFFERINGS.load(deps.storage, (&address,&offering_id))?;
 
     if off.seller.eq(&info.sender) {
         return Err(ContractError::InvalidBuyer {});
     }
 
     // check for enough coins
-    let off_fund = get_fund(info.funds.clone(), off.list_price.denom)?;
-    if off_fund.amount < off.list_price.amount {
+    let off_fund = get_fund(info.funds.clone(), off.list_price.denom.clone())?;
+    if off_fund.amount != off.list_price.amount.clone() {
         return Err(ContractError::InsufficientFunds {});
     }
 
@@ -85,6 +89,32 @@ pub fn execute_buy(
         amount: vec![coin(net_amount.u128(), off_fund.denom.clone())],
     }
     .into();
+
+    //tvl update for all collection
+    STATE.update(deps.storage, |mut state| -> StdResult<_>{
+        state.tvl = state.tvl + off_fund.amount;
+        Ok(state)
+    })?;
+
+    //update sale history of this collection
+    SALEHISTORY.save(deps.storage, (&address,&(collection_info.sale_id+1).to_string()),&SaleHistoryInfo { 
+        from:off.seller.clone().to_string(),
+        to: info.sender.to_string(), 
+        denom: off.list_price.denom.clone(),
+        amount: off_fund.amount, 
+        time: env.block.time.seconds(),
+        nft_address:address.clone(),
+        token_id:off.token_id.clone()
+    })?;
+
+    //udpate tvl and sale id for this collection
+    COLLECTIONINFO.update(deps.storage, &address, 
+    |collection_info|->StdResult<_>{
+        let mut collection_info = collection_info.unwrap();
+        collection_info.sale_id += 1;
+        collection_info.tvl = collection_info.tvl + off.list_price.amount;
+        Ok(collection_info)
+    })?;
 
     // create transfer cw721 msg
     let cw721_transfer = Cw721ExecuteMsg::TransferNft {
@@ -98,7 +128,7 @@ pub fn execute_buy(
     }
     .into();
 
-    OFFERINGS.remove(deps.storage, &offering_id);
+    OFFERINGS.remove(deps.storage, (&address,&offering_id));
 
     let price_string = format!("{}{}", off_fund.amount, off_fund.denom);
     let res = Response::new()
@@ -116,8 +146,9 @@ pub fn execute_withdraw(
     deps: DepsMut,
     info: MessageInfo,
     offering_id: String,
+    address: String
 ) -> Result<Response, ContractError> {
-    let off = OFFERINGS.load(deps.storage, &offering_id)?;
+    let off = OFFERINGS.load(deps.storage, (&address,&offering_id))?;
     if off.seller.ne(&info.sender) {
         return Err(ContractError::Unauthorized {});
     }
@@ -134,7 +165,7 @@ pub fn execute_withdraw(
     }
     .into();
 
-    OFFERINGS.remove(deps.storage, &offering_id);
+    OFFERINGS.remove(deps.storage, (&address,&offering_id));
 
     let res = Response::new()
         .add_attribute("action", "withdraw_nft")
@@ -149,7 +180,11 @@ pub fn execute_receive_nft(
     wrapper: Cw721ReceiveMsg,
 ) -> Result<Response, ContractError> {
     let msg: SellNft = from_binary(&wrapper.msg)?;
-    let id = increment_offerings(deps.storage)?.to_string();
+    let nft_address = info.sender.to_string();
+
+    let id = increment_offerings(deps.storage,nft_address.clone())?.to_string();
+
+    is_registered_collection(deps.as_ref(), &nft_address)?;
 
     // save Offering
     let off = Offering {
@@ -158,7 +193,7 @@ pub fn execute_receive_nft(
         seller: deps.api.addr_validate(&wrapper.sender)?,
         list_price: msg.list_price.clone(),
     };
-    OFFERINGS.save(deps.storage, &id, &off)?;
+    OFFERINGS.save(deps.storage, (&id,&nft_address), &off)?;
 
     let price_string = format!("{}{}", msg.list_price.amount, msg.list_price.denom);
     let res = Response::new()
@@ -212,22 +247,63 @@ pub fn execute_change_fee(
     Ok(res)
 }
 
+pub fn execute_add_collection(
+    deps: DepsMut,
+    info: MessageInfo,
+    address: String,
+) -> Result<Response, ContractError> {
+
+    let state = STATE.load(deps.storage)?;
+    
+    if state.owner.ne(&info.sender) {
+            return Err(ContractError::Unauthorized {});
+        }
+
+    COLLECTIONINFO.save(deps.storage, &address, &CollectionInfo {
+         sale_id:0 , 
+         tvl: Uint128::new(0),
+         num_offerings: 0 })?;
+ 
+    let res = Response::new()
+        .add_attribute("action", "register collection")
+        .add_attribute("address", address);
+    Ok(res)
+}
+
+
+pub fn is_registered_collection(
+    deps:Deps,
+    address:&String
+)->Result<CollectionInfo,ContractError>{
+    let collection_info = COLLECTIONINFO.may_load(deps.storage, address)?;
+    if collection_info == None{
+        return Err(ContractError::NotListedNFt{});
+    }
+    else{
+        Ok(collection_info.unwrap())
+    }
+}
+
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetCount {} => to_binary(&query_count(deps)?),
+        QueryMsg::GetStateInfo{} => to_binary(&query_state(deps)?),
+        QueryMsg::GetCollectionInfo { address } => to_binary(&query_collection_info(deps,address)?),
         QueryMsg::GetFee {} => to_binary(&query_fee(deps)?),
-        QueryMsg::AllOffers { start_after, limit } => {
-            to_binary(&query_all(deps, start_after, limit)?)
+        QueryMsg::GetOffers { start_after, limit, address }  => {
+            to_binary(&query_all(deps, start_after, limit,address)?)
         }
     }
 }
 
-fn query_count(deps: Deps) -> StdResult<CountResponse> {
+fn query_state(deps: Deps) -> StdResult<State> {
     let state = STATE.load(deps.storage)?;
-    Ok(CountResponse {
-        count: state.num_offerings,
-    })
+    Ok(state)
+}
+
+fn query_collection_info(deps: Deps, address: String) -> StdResult<CollectionInfo>{
+    let collection_info = is_registered_collection(deps, &address).unwrap();
+    Ok(collection_info)
 }
 
 fn query_fee(deps: Deps) -> StdResult<FeeResponse> {
@@ -239,6 +315,7 @@ fn query_all(
     deps: Deps,
     start_after: Option<String>,
     limit: Option<u32>,
+    address:String
 ) -> StdResult<OffersResponse> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     let start = start_after.map(Bound::exclusive);
@@ -313,9 +390,10 @@ mod tests {
 
         assert_eq!(0, res.messages.len());
 
-        let msg = QueryMsg::AllOffers {
+        let msg = QueryMsg::GetOffers {
             start_after: None,
             limit: None,
+            address:"collection1".to_string()
         };
         let res = query(deps.as_ref(), mock_env(), msg).unwrap();
         let value: OffersResponse = from_binary(&res).unwrap();
@@ -343,6 +421,7 @@ mod tests {
 
         let msg = ExecuteMsg::Buy {
             offering_id: "1".into(),
+            address :"collection1".to_string()
         };
         let info = mock_info("owner", &coins(1000, "earth"));
         let res = execute(deps.as_mut(), mock_env(), info, msg.clone());

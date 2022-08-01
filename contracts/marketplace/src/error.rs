@@ -13,6 +13,9 @@ pub enum ContractError {
     #[error("Insufficient funds")]
     InsufficientFunds {},
 
+    #[error("This nft collection is not allowed")]
+    NotListedNFt {},
+
     #[error("Invalid buyer")]
     InvalidBuyer {},
 

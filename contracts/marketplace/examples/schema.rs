@@ -4,7 +4,7 @@ use std::fs::create_dir_all;
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
 use human_market_place::msg::{
-    CountResponse, ExecuteMsg, FeeResponse, InstantiateMsg, Offer, OffersResponse, QueryMsg,
+     ExecuteMsg, FeeResponse, InstantiateMsg, Offer, OffersResponse, QueryMsg,
     SellNft,
 };
 use human_market_place::state::State;
