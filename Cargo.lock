@@ -292,6 +292,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw721"
+version = "0.13.2"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-utils 0.13.4",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "cw721-base"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -302,6 +313,21 @@ dependencies = [
  "cw-utils 0.12.1",
  "cw2 0.12.1",
  "cw721 0.12.0",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "cw721-base"
+version = "0.13.2"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus 0.13.4",
+ "cw-utils 0.13.4",
+ "cw2 0.13.4",
+ "cw721 0.13.2",
  "schemars",
  "serde",
  "thiserror",
@@ -477,7 +503,7 @@ dependencies = [
  "cw-utils 0.13.4",
  "cw2 0.13.4",
  "cw721 0.11.1",
- "cw721-base",
+ "cw721-base 0.12.0",
  "rand",
  "rand_chacha",
  "rand_core 0.5.1",
