@@ -35,9 +35,11 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let creator = info.sender.to_string();
+    let message = msg.cw721_instantiate_msg.mint_info.clone().unwrap();
+    
     
     //check if the total_supply is more than zero and less than max token_limit
-     if msg.total_supply == Uint128::zero() || msg.total_supply > MAX_TOKEN_LIMIT {
+     if message.total_supply == Uint128::zero() || message.total_supply > MAX_TOKEN_LIMIT {
         return Err(ContractError::InvalidNumTokens {
             min: Uint128::new(1),
             max: MAX_TOKEN_LIMIT,
@@ -45,45 +47,42 @@ pub fn instantiate(
     }
 
     //check the per address limit is more than zero and less than max per address limit
-    if msg.per_address_limit == Uint128::zero() || msg.per_address_limit > MAX_PER_ADDRESS_LIMIT {
+    if message.per_address_limit == Uint128::zero() || message.per_address_limit > MAX_PER_ADDRESS_LIMIT {
         return Err(ContractError::InvalidPerAddressLimit {
             max: MAX_PER_ADDRESS_LIMIT,
             min: Uint128::new(1),
-            got: msg.per_address_limit,
+            got: message.per_address_limit,
         });
     }
     
     // if current time is beyond the provided start time return error
     let current_time = env.block.time.seconds();
-    if current_time > msg.start_mint_time {
+    if current_time > message.start_mint_time {
         return Err(ContractError::InvalidStartTime(
-            msg.start_mint_time,
+            message.start_mint_time,
             current_time,
         ));
     }
-    if msg.white_user_list != None {
-        let white_users = msg.white_user_list.as_ref().unwrap();
-        //check the address of white_users
-        for white_user in white_users{
-            deps.api.addr_validate(&white_user.address)?;
-            WHITEUSERS.save(deps.storage, &white_user.address, &white_user.wallet_limit)?;
-        }
-    }
 
+    let total_num = Uint128::u128(&message.total_supply) as u32;
+    let mut mintable_token_list:Vec<u32> = Vec::new();      
+    for i in 1 .. total_num+1{
+        mintable_token_list.push(i);
+    }
     
     let state = State {
         admin:creator.clone(),
-        base_token_uri: msg.base_token_uri,
-        total_supply: msg.total_supply,
-        mint_count:msg.mint_count,
-        start_mint_time: msg.start_mint_time,
-        per_address_limit: msg.per_address_limit,
-        unit_price: msg.unit_price,
+        base_token_uri: message.base_token_uri,
+        total_supply: message.total_supply,
+        mint_count:Uint128::zero(),
+        start_mint_time: message.start_mint_time,
+        per_address_limit: message.per_address_limit,
+        public_price: message.public_price,
+        private_price:message.private_price,
         mint_flag:true,
-        enable_token_id:msg.enable_token_id,
-        is_public_mint:msg.is_public_mint,
-        nft_base_name:msg.nft_base_name.clone(),
-        is_rand_mint:msg.is_rand_mint
+        enable_token_id:Some(mintable_token_list),
+        is_public_mint:message.is_public_mint,
+        nft_base_name:message.nft_base_name.clone()
     };
     CONFIG.save(deps.storage, &state)?;
 
@@ -94,7 +93,7 @@ pub fn instantiate(
             code_id: msg.cw721_code_id, 
             msg: to_binary(&msg.cw721_instantiate_msg)?,
             funds: info.funds, 
-            label: msg.nft_base_name 
+            label: message.nft_base_name 
         }.into(),
         id:INSTANTIATE_CW721_REPLY_ID,
         gas_limit:None,
@@ -123,7 +122,8 @@ pub fn execute(
         ExecuteMsg::Mint{} => execute_mint(deps, env, info),
         ExecuteMsg::SetConfig { config }   => execute_set_config(deps, info,config),
         ExecuteMsg::SetMintFlag {  flag } => execute_set_flag(deps, info,flag),
-        ExecuteMsg::AddWhiteUsers {  white_users } => execute_add_white_users(deps, info, white_users)
+        ExecuteMsg::AddWhiteUsers {  white_users } => execute_add_white_users(deps, info, white_users),
+        ExecuteMsg::ChangeSaleType { is_public_mint }  => execute_change_sale_type(deps, info, is_public_mint)
     }                                  
 }
 
@@ -192,26 +192,22 @@ fn execute_mint(
     //get mint index for token_id and change collection info
     let  mint_index:Uint128;
 
-    if collection_info.is_rand_mint{
-        let mut enable_token_id = collection_info.enable_token_id.unwrap();
-        let count = enable_token_id.len();
-        let prng_seed: Vec<u8> = sha_256(base64::encode("entropy").as_bytes()).to_vec();
-        let random_seed = new_entropy(&info,&env, prng_seed.as_ref(), prng_seed.as_ref());
-        let mut rng = ChaChaRng::from_seed(random_seed);
-        let  rand_num = (rng.next_u32() % (count as u32)) as usize ;
-        let rand = enable_token_id[rand_num];
-        mint_index = Uint128::new(rand as u128);
-        enable_token_id.remove(rand_num);
+    let mut enable_token_id = collection_info.enable_token_id.unwrap();
+    let count = enable_token_id.len();
+    let prng_seed: Vec<u8> = sha_256(base64::encode("entropy").as_bytes()).to_vec();
+    let random_seed = new_entropy(&info,&env, prng_seed.as_ref(), prng_seed.as_ref());
+    let mut rng = ChaChaRng::from_seed(random_seed);
+    let  rand_num = (rng.next_u32() % (count as u32)) as usize ;
+    let rand = enable_token_id[rand_num];
+    mint_index = Uint128::new(rand as u128);
+    enable_token_id.remove(rand_num);
 
-        // updated mintable token ids
-        CONFIG.update(deps.storage, |mut collection_info|->StdResult<_>{  
-                collection_info.enable_token_id = Some(enable_token_id);
-                Ok(collection_info)
-         })?;
-    }  else{
-        let crr_mint_count = collection_info.mint_count;
-        mint_index =  crr_mint_count + Uint128::new(1);
-    }
+    // updated mintable token ids
+    CONFIG.update(deps.storage, |mut collection_info|->StdResult<_>{  
+            collection_info.enable_token_id = Some(enable_token_id);
+            Ok(collection_info)
+        })?;
+
 
     //increase the total mint count by one
     CONFIG.update(deps.storage, |mut collection_info|->StdResult<_>{  
@@ -238,8 +234,15 @@ fn execute_mint(
             funds: vec![],
     }));
 
-    let denom = collection_info.unit_price.denom;
-   
+    let denom :String;
+    let unit_price:Uint128;
+    if collection_info.is_public_mint{
+        denom = collection_info.public_price.denom;
+        unit_price = collection_info.public_price.amount;
+    }else{
+        denom = collection_info.private_price.denom;
+        unit_price = collection_info.private_price.amount;
+    }
     //funds the users sent
     let amount=  info
         .funds
@@ -257,9 +260,9 @@ fn execute_mint(
             })   
         }
     } else{
-        if amount != collection_info.unit_price.amount{
+        if amount != unit_price{
             return Err(ContractError::NotExactFunds{
-                price:collection_info.unit_price.amount,
+                price:unit_price,
                 sent_money:amount
             })
         }else{ messages.push(CosmosMsg::Bank(BankMsg::Send { 
@@ -292,13 +295,13 @@ fn execute_set_config(
         return Err(ContractError::Unauthorized {});
     }
 
-
     CONFIG.update(deps.storage,
     |mut state|->StdResult<_>{
         state.base_token_uri = config.base_token_uri;
         state.start_mint_time = config.start_mint_time;
         state.per_address_limit = config.per_address_limit;
-        state.unit_price = config.unit_price;
+        state.public_price = config.public_price;
+        state.private_price = config.private_price;
         state.nft_base_name = config.nft_base_name;
         Ok(state)
     })?;
@@ -328,6 +331,28 @@ fn execute_set_flag(
 
    Ok(Response::new()
        .add_attribute("action", "set mint flag"))
+}
+
+
+fn execute_change_sale_type(
+    deps: DepsMut,
+    info: MessageInfo,
+    is_public_mint:bool
+) -> Result<Response, ContractError> {
+   let state =CONFIG.load(deps.storage)?;
+   //auth check
+   if state.admin != info.sender.to_string() {
+        return Err(ContractError::Unauthorized {});
+   }
+   
+   CONFIG.update(deps.storage, 
+    |mut state|->StdResult<_>{
+        state.is_public_mint = is_public_mint;
+        Ok(state)
+    })?;
+
+   Ok(Response::new()
+       .add_attribute("action", "swtich mint type"))
 }
 
 
@@ -370,7 +395,8 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
     match reply {
         Ok(res) => {
             CW721_ADDRESS.save(deps.storage, &res.contract_address)?;
-            Ok(Response::default().add_attribute("action", "instantiate_cw721_reply"))
+            Ok(Response::default().add_attribute("action", "instantiate_cw721_reply")
+                .add_attribute("nft_address", res.contract_address))
         }
         Err(_) => Err(ContractError::InstantiateCw721Error {}),
     }

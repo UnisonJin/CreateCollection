@@ -17,12 +17,12 @@ pub struct State {
     pub mint_count:Uint128,
     pub start_mint_time: u64,
     pub per_address_limit: Uint128,
-    pub unit_price: Coin,
+    pub public_price: Coin,
+    pub private_price:Coin,
     pub mint_flag:bool,
     pub enable_token_id:Option<Vec<u32>>,
     pub is_public_mint:bool,
-    pub nft_base_name:String,
-    pub is_rand_mint:bool
+    pub nft_base_name:String
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -33,8 +33,47 @@ pub struct AdminInfo {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Cw721InitMessage {
-    pub name:String,
-    pub symbol:String,
-    pub minter:String
+     /// Name of the NFT contract
+    pub name: String,
+    /// Symbol of the NFT contract
+    pub symbol: String,
+
+    pub collection_info : CollectionInfo,
+
+    pub mint_info : Option<MintInfo>
 }
 
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct CollectionInfo {
+    pub title: Option<String>,
+    pub creator:Option<String>,
+    pub image_url:Option<String>,
+    pub background_url:Option<String>,
+    pub logo_url:Option<String>,
+    pub collection_id : Option<String>,
+    pub metadata_url:Option<String>,
+    pub social_links:Option<Vec<SocialLinkType>>,
+    pub description:Option<String>,
+    pub is_launch : Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct MintInfo {
+    pub base_token_uri: String,
+    pub total_supply: Uint128,
+    pub start_mint_time: u64,
+    pub per_address_limit: Uint128,
+    pub public_price: Coin,
+    pub private_price:Coin,
+    pub mint_flag:bool,
+    pub is_public_mint:bool,
+    pub nft_base_name:String
+}
+
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct SocialLinkType {
+    pub tool: String,
+    pub link: String
+}
