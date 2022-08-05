@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub fee: Decimal,
+    pub denom : String
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -28,10 +29,6 @@ pub enum ExecuteMsg {
     /// only admin.
     ChangeFee {
         fee: Decimal,
-    },
-    //only admin
-    AddCollection{
-        address:String
     }
 }
 
@@ -51,10 +48,15 @@ pub enum QueryMsg {
     /// Requires pagination. Lists all offers controlled by the contract.
     /// Return type: OffersResponse.
     GetOffers {
-        start_after: Option<String>,
-        limit: Option<u32>,
+        page_num: u32,
+        count: u32,
         address:String
     },
+    GetSaleHistory{
+        page_num: u32,
+        count: u32,
+        address:String
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

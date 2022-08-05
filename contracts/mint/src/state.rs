@@ -22,7 +22,8 @@ pub struct State {
     pub mint_flag:bool,
     pub enable_token_id:Option<Vec<u32>>,
     pub is_public_mint:bool,
-    pub nft_base_name:String
+    pub nft_base_name:String,
+    pub base_image_uri:String
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -68,7 +69,8 @@ pub struct MintInfo {
     pub private_price:Coin,
     pub mint_flag:bool,
     pub is_public_mint:bool,
-    pub nft_base_name:String
+    pub nft_base_name:String,
+    pub base_image_uri:String
 }
 
 

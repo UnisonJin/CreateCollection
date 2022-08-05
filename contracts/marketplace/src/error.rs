@@ -13,6 +13,9 @@ pub enum ContractError {
     #[error("Insufficient funds")]
     InsufficientFunds {},
 
+    #[error("Wrong Denom")]
+    WrongDenom {},
+
     #[error("This nft collection is not allowed")]
     NotListedNFt {},
 
@@ -21,4 +24,7 @@ pub enum ContractError {
 
     #[error("No data in ReceiveMsg")]
     NoData {},
+
+    #[error("Wrong Page Number")]
+    WrongPageNumber {},
 }
