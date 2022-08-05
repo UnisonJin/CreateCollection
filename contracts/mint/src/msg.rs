@@ -1,4 +1,4 @@
-use cosmwasm_std::{ Uint128,Coin};
+use cosmwasm_std::{ Uint128};
 use schemars::{JsonSchema};
 use serde::{Deserialize, Serialize};
 
@@ -32,6 +32,7 @@ pub enum QueryMsg {
 #[serde(rename_all = "snake_case")]
 pub struct Extension {   
     pub minter: Option<String>,
+    pub image_url : Option<String>
 }
 
 

@@ -7,10 +7,10 @@ use cw_storage_plus::{Item, Map};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
-    
     pub fee: Decimal,
     pub owner: Addr,
-    pub tvl:Uint128
+    pub tvl:Uint128,
+    pub denom:String
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -30,10 +30,20 @@ pub const COLLECTIONINFO : Map<&str,CollectionInfo> = Map::new("collection_info"
 pub fn increment_offerings(store: &mut dyn Storage,address:String) -> Result<u64, ContractError> {
     let mut num = 0;
     COLLECTIONINFO.update(store,&address ,| collection_info| -> Result<_, ContractError> {
-        let mut collection_info = collection_info.unwrap();
-        collection_info.num_offerings += 1;
-        num = collection_info.num_offerings;
-        Ok(collection_info)
+       if collection_info!= None{
+            let mut collection_info = collection_info.unwrap();
+            collection_info.num_offerings += 1;
+            num = collection_info.num_offerings;
+            Ok(collection_info)
+        }
+       else{
+        num = 1;
+        Ok(CollectionInfo {
+            sale_id:0 , 
+            tvl: Uint128::new(0),
+            num_offerings: 1 
+          })
+       }
     })?;
 
     Ok(num)

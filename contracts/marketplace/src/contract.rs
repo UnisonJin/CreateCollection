@@ -1,25 +1,22 @@
 use cosmwasm_std::{
     coin, entry_point, from_binary, to_binary, BankMsg, Binary, CosmosMsg, Decimal, Deps, DepsMut,
-    Env, MessageInfo, Order, Response, StdResult, Uint128, WasmMsg,
+    Env, MessageInfo,  Response, StdResult, Uint128, WasmMsg,
 };
 
 use crate::cw721::{Cw721ExecuteMsg, Cw721ReceiveMsg};
 use crate::error::ContractError;
 use crate::msg::{
-     ExecuteMsg, FeeResponse, InstantiateMsg, Offer, OffersResponse, QueryMsg,
+     ExecuteMsg, FeeResponse, InstantiateMsg,  QueryMsg,
     SellNft,
 };
-use crate::state::{get_fund, increment_offerings, Offering, State, OFFERINGS, STATE, CollectionInfo, COLLECTIONINFO, SALEHISTORY,SaleHistoryInfo};
+use crate::state::{get_fund, increment_offerings, Offering, State, OFFERINGS, STATE, CollectionInfo, COLLECTIONINFO, SALEHISTORY,SaleHistoryInfo, self};
 use cw2::set_contract_version;
-use cw_storage_plus::Bound;
 use std::ops::{Mul, Sub};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "human_market_place";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-const DEFAULT_LIMIT: u32 = 10;
-const MAX_LIMIT: u32 = 30;
 
 #[entry_point]
 pub fn instantiate(
@@ -33,7 +30,8 @@ pub fn instantiate(
     let state = State {
         fee: msg.fee,
         owner: info.sender,
-        tvl: Uint128::zero()
+        tvl: Uint128::zero(),
+        denom:msg.denom
     };
     STATE.save(deps.storage, &state)?;
 
@@ -56,7 +54,6 @@ pub fn execute(
             execute_withdraw_fees(deps, info, amount, denom)
         }
         ExecuteMsg::ChangeFee { fee } => execute_change_fee(deps, info, fee),
-        ExecuteMsg::AddCollection { address } => execute_add_collection(deps, info, address)
     }
 }
 
@@ -68,7 +65,7 @@ pub fn execute_buy(
     address:String
 ) -> Result<Response, ContractError> {
     // check if offering exists
-    let collection_info =  is_registered_collection(deps.as_ref(), &address)?;
+    let collection_info =  is_registered_collection(deps.as_ref(), &address).unwrap();
     let off = OFFERINGS.load(deps.storage, (&address,&offering_id))?;
 
     if off.seller.eq(&info.sender) {
@@ -128,7 +125,32 @@ pub fn execute_buy(
     }
     .into();
 
-    OFFERINGS.remove(deps.storage, (&address,&offering_id));
+    if collection_info.num_offerings == 1{    
+          OFFERINGS.remove( deps.storage, (&address,&offering_id));
+          COLLECTIONINFO.update(deps.storage, &address,
+             |collection_info|->StdResult<_>{
+                    let mut collection_info = collection_info.unwrap();
+                    collection_info.num_offerings = 0;
+                    Ok(collection_info)
+             })?;
+    }
+
+    else{
+        let crr_offering_id = collection_info.num_offerings;
+        let offering = OFFERINGS.may_load(deps.storage, (&address,&crr_offering_id.to_string()))?;
+        if offering!=None{
+            OFFERINGS.save(deps.storage, (&address,&offering_id.to_string()), &offering.unwrap())?;
+           
+            COLLECTIONINFO.update(deps.storage, &address,
+                |collection_info|->StdResult<_>{
+                        let mut collection_info = collection_info.unwrap();
+                        collection_info.num_offerings =collection_info.num_offerings-1;
+                        Ok(collection_info)
+                })?;
+        OFFERINGS.remove( deps.storage, (&address,&crr_offering_id.to_string()));
+  
+         }
+    }
 
     let price_string = format!("{}{}", off_fund.amount, off_fund.denom);
     let res = Response::new()
@@ -148,10 +170,12 @@ pub fn execute_withdraw(
     offering_id: String,
     address: String
 ) -> Result<Response, ContractError> {
-    let off = OFFERINGS.load(deps.storage, (&address,&offering_id))?;
+    let off = OFFERINGS.load(deps.storage, (&address,&offering_id)).unwrap();
     if off.seller.ne(&info.sender) {
         return Err(ContractError::Unauthorized {});
     }
+
+    let collection_info = is_registered_collection(deps.as_ref(), &address)?;
 
     let transfer_cw721_msg = Cw721ExecuteMsg::TransferNft {
         recipient: off.seller.into(),
@@ -165,7 +189,32 @@ pub fn execute_withdraw(
     }
     .into();
 
-    OFFERINGS.remove(deps.storage, (&address,&offering_id));
+    if collection_info.num_offerings == 1{    
+          OFFERINGS.remove( deps.storage, (&address,&offering_id));
+          COLLECTIONINFO.update(deps.storage, &address,
+             |collection_info|->StdResult<_>{
+                    let mut collection_info = collection_info.unwrap();
+                    collection_info.num_offerings = 0;
+                    Ok(collection_info)
+             })?;
+     }
+
+     else{
+        let crr_offering_id = collection_info.num_offerings;
+        let offering = OFFERINGS.may_load(deps.storage, (&address,&crr_offering_id.to_string()))?;
+        if offering!=None{
+            OFFERINGS.save(deps.storage, (&address,&offering_id.to_string()), &offering.unwrap())?;
+           
+            COLLECTIONINFO.update(deps.storage, &address,
+                |collection_info|->StdResult<_>{
+                        let mut collection_info = collection_info.unwrap();
+                        collection_info.num_offerings =collection_info.num_offerings-1;
+                        Ok(collection_info)
+                })?;
+        OFFERINGS.remove( deps.storage, (&address,&crr_offering_id.to_string()));
+  
+         }
+    }
 
     let res = Response::new()
         .add_attribute("action", "withdraw_nft")
@@ -181,19 +230,23 @@ pub fn execute_receive_nft(
 ) -> Result<Response, ContractError> {
     let msg: SellNft = from_binary(&wrapper.msg)?;
     let nft_address = info.sender.to_string();
+    let state = STATE.load(deps.storage)?;
 
+    if msg.list_price.denom != state.denom{
+        return Err(ContractError::WrongDenom {  });
+    }
+    
     let id = increment_offerings(deps.storage,nft_address.clone())?.to_string();
 
-    is_registered_collection(deps.as_ref(), &nft_address)?;
-
+    
     // save Offering
     let off = Offering {
-        contract: info.sender.clone(),
+        contract: nft_address,
         token_id: wrapper.token_id,
         seller: deps.api.addr_validate(&wrapper.sender)?,
         list_price: msg.list_price.clone(),
     };
-    OFFERINGS.save(deps.storage, (&id,&nft_address), &off)?;
+    OFFERINGS.save(deps.storage, (&nft_address,&id), &off)?;
 
     let price_string = format!("{}{}", msg.list_price.amount, msg.list_price.denom);
     let res = Response::new()
@@ -259,11 +312,7 @@ pub fn execute_add_collection(
             return Err(ContractError::Unauthorized {});
         }
 
-    COLLECTIONINFO.save(deps.storage, &address, &CollectionInfo {
-         sale_id:0 , 
-         tvl: Uint128::new(0),
-         num_offerings: 0 })?;
- 
+   
     let res = Response::new()
         .add_attribute("action", "register collection")
         .add_attribute("address", address);
@@ -290,8 +339,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetStateInfo{} => to_binary(&query_state(deps)?),
         QueryMsg::GetCollectionInfo { address } => to_binary(&query_collection_info(deps,address)?),
         QueryMsg::GetFee {} => to_binary(&query_fee(deps)?),
-        QueryMsg::GetOffers { start_after, limit, address }  => {
-            to_binary(&query_all(deps, start_after, limit,address)?)
+        QueryMsg::GetOffers { page_num, count,address }  => {
+            to_binary(&query_all(deps,  page_num, count,address )?)
+        },
+        QueryMsg::GetSaleHistory { page_num, count,address }  => {
+            to_binary(&query_sale_history(deps,  page_num, count,address )?)
         }
     }
 }
@@ -313,31 +365,59 @@ fn query_fee(deps: Deps) -> StdResult<FeeResponse> {
 
 fn query_all(
     deps: Deps,
-    start_after: Option<String>,
-    limit: Option<u32>,
+    page_num: u32,
+    count: u32,
     address:String
-) -> StdResult<OffersResponse> {
-    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-    let start = start_after.map(Bound::exclusive);
-
-    let offers: StdResult<Vec<Offer>> = OFFERINGS
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|item| item.map(map_offer))
-        .collect();
-
-    Ok(OffersResponse { offers: offers? })
-}
-
-fn map_offer((k, v): (Vec<u8>, Offering)) -> Offer {
-    Offer {
-        id: String::from_utf8_lossy(&k).to_string(),
-        token_id: v.token_id,
-        contract: v.contract,
-        seller: v.seller,
-        list_price: v.list_price,
+) -> StdResult<Vec<Offering>> {
+    if page_num == 0 {
+        let offerings:Vec<Offering> = Vec::new(); 
+        Ok(offerings)
     }
+    else{
+        let mut offerings:Vec<Offering> = Vec::new(); 
+        for i in (page_num-1)*count+1 .. page_num*count+1{
+            let offering = OFFERINGS.may_load(deps.storage, (&address,&i.to_string()))?;
+            if offering == None{
+                continue;
+            }
+            else{
+                let offering = offering.unwrap();
+                offerings.push(offering); 
+            }
+        }
+        Ok(offerings)
+    }
+    
 }
+
+
+fn query_sale_history(
+    deps: Deps,
+    page_num: u32,
+    count: u32,
+    address:String
+) -> StdResult<Vec<SaleHistoryInfo>> {
+    if page_num == 0 {
+        let sale_history:Vec<SaleHistoryInfo> = Vec::new(); 
+        Ok(sale_history)
+    }
+    else{
+        let mut sale_history:Vec<SaleHistoryInfo> = Vec::new(); 
+        for i in (page_num-1)*count+1 .. page_num*count+1{
+            let sale_info = SALEHISTORY.may_load(deps.storage, (&address,&i.to_string()))?;
+            if sale_info == None{
+                continue;
+            }
+            else{
+                let sale_info = sale_info.unwrap();
+                sale_history.push(sale_info); 
+            }
+        }
+        Ok(sale_history)
+    }
+    
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -350,6 +430,7 @@ mod tests {
     fn setup(deps: DepsMut) {
         let msg = InstantiateMsg {
             fee: Decimal::percent(2),
+            denom:"earth".to_string()
         };
         let info = mock_info("creator", &[]);
 
@@ -363,6 +444,7 @@ mod tests {
 
         let msg = InstantiateMsg {
             fee: Decimal::percent(2),
+            denom:"earth".to_string()
         };
         let info = mock_info("creator", &[]);
 
@@ -390,15 +472,7 @@ mod tests {
 
         assert_eq!(0, res.messages.len());
 
-        let msg = QueryMsg::GetOffers {
-            start_after: None,
-            limit: None,
-            address:"collection1".to_string()
-        };
-        let res = query(deps.as_ref(), mock_env(), msg).unwrap();
-        let value: OffersResponse = from_binary(&res).unwrap();
-
-        assert_eq!("1", value.offers.first().unwrap().token_id);
+       
     }
 
     #[test]
@@ -415,39 +489,47 @@ mod tests {
             sender: "owner".into(),
             msg: to_binary(&sell_msg).unwrap(),
         });
-        let info = mock_info("nft-collectibles", &[]);
+        let info = mock_info("collection1", &[]);
         let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
         assert_eq!(0, res.messages.len());
+
+        let collection_info = query_collection_info(deps.as_ref(), "collection1".to_string()).unwrap();
+        assert_eq!(collection_info,CollectionInfo{
+            sale_id:0,
+            num_offerings:1,
+            tvl:Uint128::zero()
+        });
+
+        let offerings = query_all(deps.as_ref(), 1, 20, "collection1".to_string()).unwrap();
+        assert_eq!(offerings.len(),1);
 
         let msg = ExecuteMsg::Buy {
             offering_id: "1".into(),
             address :"collection1".to_string()
         };
-        let info = mock_info("owner", &coins(1000, "earth"));
-        let res = execute(deps.as_mut(), mock_env(), info, msg.clone());
-        match res {
-            Err(ContractError::InvalidBuyer {}) => {}
-            _ => panic!("Must return InvalidBuyer error"),
-        }
+        let info = mock_info("owner1", &coins(1000, "earth"));
+        execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+       
+        let offerings = query_all(deps.as_ref(), 1, 20, "collection1".to_string()).unwrap();
+        assert_eq!(offerings.len(),0);
 
-        let info = mock_info("anyone", &coins(400, "earth"));
-        let res = execute(deps.as_mut(), mock_env(), info, msg.clone());
-        match res {
-            Err(ContractError::InsufficientFunds {}) => {}
-            _ => panic!("Must return InsufficientFunds error"),
-        }
+         let collection_info = query_collection_info(deps.as_ref(), "collection1".to_string()).unwrap();
+        assert_eq!(collection_info,CollectionInfo{
+            sale_id:1,
+            num_offerings:0,
+            tvl:Uint128::new(1000)
+        });
 
-        let info = mock_info("anyone", &coins(1000, "earth"));
-        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        assert_eq!(2, res.messages.len());
-        assert_eq!(
-            res.messages[0],
-            SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
-                to_address: "owner".into(),
-                amount: coins(980, "earth")
-            }))
-        );
+         let sale_history = query_sale_history(deps.as_ref(),1,10, "collection1".to_string()).unwrap();
+        assert_eq!(sale_history,vec![SaleHistoryInfo{
+            from:"owner".to_string(),
+            to:"owner1".to_string(),
+            denom:"earth".to_string(),
+            amount:Uint128::new(1000),
+            time:mock_env().block.time.seconds(),
+            nft_address:"collection1".to_string(),
+            token_id:"1".to_string()
+        }]);
     }
 
     #[test]

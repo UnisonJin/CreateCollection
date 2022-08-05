@@ -82,7 +82,8 @@ pub fn instantiate(
         mint_flag:true,
         enable_token_id:Some(mintable_token_list),
         is_public_mint:message.is_public_mint,
-        nft_base_name:message.nft_base_name.clone()
+        nft_base_name:message.nft_base_name.clone(),
+        base_image_uri:message.base_image_uri
     };
     CONFIG.save(deps.storage, &state)?;
 
@@ -228,7 +229,8 @@ fn execute_mint(
                 owner: sender.clone(),
                 token_uri: Some([[collection_info.base_token_uri,mint_index.to_string()].join(""),"json".to_string()].join(".")),
                 extension:  Extension{
-                    minter:Some(sender.clone())
+                    minter:Some(sender.clone()),
+                    image_url:Some([[collection_info.base_image_uri,mint_index.to_string()].join(""),"json".to_string()].join("."))
                 }
             }))?,
             funds: vec![],
