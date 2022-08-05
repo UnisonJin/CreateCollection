@@ -241,7 +241,7 @@ pub fn execute_receive_nft(
     
     // save Offering
     let off = Offering {
-        contract: nft_address,
+        contract: info.sender.clone(),
         token_id: wrapper.token_id,
         seller: deps.api.addr_validate(&wrapper.sender)?,
         list_price: msg.list_price.clone(),
@@ -252,7 +252,7 @@ pub fn execute_receive_nft(
     let res = Response::new()
         .add_attribute("action", "sell_nft")
         .add_attribute("offering_id", id)
-        .add_attribute("nft_contract", info.sender)
+        .add_attribute("nft_contract", info.sender.to_string())
         .add_attribute("seller", off.seller)
         .add_attribute("list_price", price_string)
         .add_attribute("token_id", off.token_id);
