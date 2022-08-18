@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::Binary;
-use cw721::{Expiration,CollectionInfo,MintInfo};
+use cw721::{Expiration,CollectionInfo,MintInfo,Royalty};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -19,7 +19,9 @@ pub struct InstantiateMsg {
 
     pub collection_info : CollectionInfo,
 
-    pub mint_info : Option<MintInfo>
+    pub mint_info : Option<MintInfo>,
+
+    pub royalty_info : Option<Royalty>
 }
 
 /// This is like Cw721ExecuteMsg but we add a Mint command for an owner
@@ -66,6 +68,8 @@ pub enum ExecuteMsg<T> {
 
     /// Update admin
     UpdateAdmin { admin: String },
+
+    ChangeRoyalty {royalty: Option<Royalty>}
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -157,4 +161,9 @@ pub struct MinterResponse {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct AdminResponse {
     pub admin: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct Metadata {
+    pub image_url: String,
 }

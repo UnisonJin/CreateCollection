@@ -1,10 +1,10 @@
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Decimal};
 
 use cw2::set_contract_version;
-use cw721::{ContractInfoResponse, CustomMsg, Cw721Execute, Cw721ReceiveMsg, Expiration};
+use cw721::{ContractInfoResponse, CustomMsg, Cw721Execute, Cw721ReceiveMsg, Expiration, Royalty};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MintMsg};
@@ -25,7 +25,7 @@ where
         _env: Env,
         info: MessageInfo,
         msg: InstantiateMsg,
-    ) -> StdResult<Response<C>> {
+    ) -> Result<Response<C>, ContractError>  {
         set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
         let contract_info = ContractInfoResponse {
@@ -41,6 +41,16 @@ where
         }
         self.collection_info.save(deps.storage, &msg.collection_info)?;
 
+        if msg.royalty_info != None{
+            let royalty_info = msg.royalty_info.clone().unwrap();
+            if royalty_info.royalty_rate >= Decimal::one(){
+                return Err(ContractError::WrongRoyaltyRate {  });
+            }
+            self.royalty_info.save(deps.storage, &msg.royalty_info)?;
+        }
+        else{ 
+            self.royalty_info.save(deps.storage, &None)?;
+        }
         self.admin.save(deps.storage, &admin)?;
         Ok(Response::default())
     }
@@ -78,6 +88,7 @@ where
             ExecuteMsg::Burn { token_id } => self.burn(deps, env, info, token_id),
             ExecuteMsg::UpdateMinter { minter } => self.update_minter(deps, env, info, minter),
             ExecuteMsg::UpdateAdmin { admin } => self.update_admin(deps, env, info, admin),
+            ExecuteMsg::ChangeRoyalty { royalty }  => self.set_royalty(deps, env, info, royalty)
         }
     }
 }
@@ -442,5 +453,33 @@ where
 
         // self.minter.save(deps.storage, &new_minter_addr)?;
         Ok(Response::new().add_attribute("admin", new_admin_addr))
+    }
+
+    fn set_royalty(
+        &self,
+        deps: DepsMut,
+        _env: Env,
+        info: MessageInfo,
+        royalty: Option<Royalty>,
+    ) -> Result<Response<C>, ContractError> {
+        let admin = self.admin.load(deps.storage)?;
+
+        if info.sender != admin {
+            return Err(ContractError::Unauthorized {});
+        }
+
+         if royalty != None{
+            let royalty_info = royalty.clone().unwrap();
+            if royalty_info.royalty_rate >= Decimal::one(){
+                return Err(ContractError::WrongRoyaltyRate {  });
+            }
+            self.royalty_info.save(deps.storage, &royalty)?;
+        }
+        else{ 
+            self.royalty_info.save(deps.storage, &None)?;
+        }
+      
+        // self.minter.save(deps.storage, &new_minter_addr)?;
+        Ok(Response::new().add_attribute("action", "change royalty"))
     }
 }

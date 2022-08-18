@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 use cosmwasm_std::{Addr, BlockInfo, Decimal, StdResult, Storage, Uint128};
 
-use cw721::{ContractInfoResponse, CustomMsg, Cw721, Expiration, CollectionInfo, MintInfo};
+use cw721::{ContractInfoResponse, CustomMsg, Cw721, Expiration, CollectionInfo, MintInfo, Royalty};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex};
 
 pub struct Cw721Contract<'a, T, C>
@@ -19,6 +19,7 @@ where
     pub token_count: Item<'a, u64>,
     pub collection_info : Item<'a, CollectionInfo>,
     pub mint_info : Item<'a, MintInfo>,
+    pub royalty_info : Item<'a,Option<Royalty> >,
     /// Stored as (granter, operator) giving operator full control over granter's account
     pub operators: Map<'a, (&'a Addr, &'a Addr), Expiration>,
     pub tokens: IndexedMap<'a, &'a str, TokenInfo<T>, TokenIndexes<'a, T>>,
@@ -48,7 +49,8 @@ where
             "tokens",
             "tokens__owner",
             "collection_info_key",
-            "config_mint_info"
+            "config_mint_info",
+            "royalty_info"
         )
     }
 }
@@ -66,7 +68,8 @@ where
         tokens_key: &'a str,
         tokens_owner_key: &'a str,
         collection_info_key: &'a str,
-        mint_info_key: &'a str
+        mint_info_key: &'a str,
+        royalty_info_key: &'a str
     ) -> Self {
         let indexes = TokenIndexes {
             owner: MultiIndex::new(token_owner_idx, tokens_key, tokens_owner_key),
@@ -81,7 +84,8 @@ where
             operators: Map::new(operator_key),
             tokens: IndexedMap::new(tokens_key, indexes),
             _custom_response: PhantomData,
-             mint_info:Item::new(mint_info_key)
+             mint_info:Item::new(mint_info_key),
+             royalty_info:Item::new(royalty_info_key)
         }
     }
 
@@ -151,24 +155,4 @@ where
 
 pub fn token_owner_idx<T>(d: &TokenInfo<T>) -> Addr {
     d.owner.clone()
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct Metadata {
-    // Identifies the asset to which this NFT represents
-    pub name: Option<String>,
-    // Describes the asset to which this NFT represents (may be empty)
-    pub description: Option<String>,
-    // An external URI
-    pub external_link: Option<String>,
-    // royalties
-    pub royalties: Option<Vec<Royalty>>,
-    // initial ask price
-    pub init_price: Option<Uint128>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct Royalty {
-    pub address: String,
-    pub royalty_rate: Decimal,
 }

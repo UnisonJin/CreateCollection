@@ -1,6 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use cosmwasm_std::{Uint128,Coin};
+use cosmwasm_std::{Uint128,Coin,Decimal};
 
 use cw_utils::Expiration;
 
@@ -112,7 +112,8 @@ pub struct ContractInfoResponse {
 pub struct CollectionInfoResponse {
   pub collection_info : CollectionInfo,
   pub mint_info : Option<MintInfo>,
-  pub minter : String
+  pub minter : String,
+  pub royalty_info : Option<Royalty>
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -186,4 +187,11 @@ pub struct MintInfo {
     pub mint_flag:bool,
     pub is_public_mint:bool,
     pub nft_base_name:String
+}
+
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct Royalty {
+    pub address: String,
+    pub royalty_rate: Decimal,
 }
