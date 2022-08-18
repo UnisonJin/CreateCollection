@@ -6,7 +6,7 @@ use cosmwasm_std::{to_binary, Addr, Binary, BlockInfo, Deps, Env, Order, StdErro
 use cw721::{
     AllNftInfoResponse, ApprovalResponse, ApprovalsResponse, ContractInfoResponse, CustomMsg,
     Cw721Query, Expiration, NftInfoResponse, NumTokensResponse, OperatorsResponse, OwnerOfResponse,
-    TokensResponse,
+    TokensResponse,TokensInfo,CollectionInfoResponse
 };
 use cw_storage_plus::Bound;
 use cw_utils::maybe_addr;
@@ -24,6 +24,26 @@ where
 {
     fn contract_info(&self, deps: Deps) -> StdResult<ContractInfoResponse> {
         self.contract_info.load(deps.storage)
+    }
+
+     fn get_colletion_state(&self, deps: Deps) -> StdResult<CollectionInfoResponse> {
+       let collection_info =  self.collection_info.load(deps.storage)?;
+       let mint_info = self.mint_info.may_load(deps.storage)?;
+       let minter = self.minter.load(deps.storage)?;
+       if mint_info!=None{
+            Ok( CollectionInfoResponse{
+                    collection_info:collection_info,
+                    mint_info:mint_info,
+                    minter:minter.to_string()
+            })
+        }
+       else{
+         Ok( CollectionInfoResponse{
+                    collection_info:collection_info,
+                    mint_info:None,
+                    minter:minter.to_string()
+            })
+       }
     }
 
     fn num_tokens(&self, deps: Deps) -> StdResult<NumTokensResponse> {
@@ -148,12 +168,12 @@ where
         owner: String,
         start_after: Option<String>,
         limit: Option<u32>,
-    ) -> StdResult<TokensResponse> {
+    ) -> StdResult<TokensResponse<T>> {
         let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
         let start = start_after.map(|s| Bound::ExclusiveRaw(s.into()));
 
         let owner_addr = deps.api.addr_validate(&owner)?;
-        let tokens: Vec<String> = self
+        let token_ids: Vec<String> = self
             .tokens
             .idx
             .owner
@@ -161,27 +181,16 @@ where
             .keys(deps.storage, start, None, Order::Ascending)
             .take(limit)
             .collect::<StdResult<Vec<_>>>()?;
+        
+        let mut tokens:Vec<TokensInfo<T>> = Vec::new();
+        for  token_id in token_ids{
+            let info = self.tokens.load(deps.storage, &token_id)?;
+            tokens.push(TokensInfo { token_id: token_id, nft_info: NftInfoResponse {
+                 token_uri: info.token_uri,
+                extension: info.extension } })
+        }
 
         Ok(TokensResponse { tokens })
-    }
-
-    fn all_tokens(
-        &self,
-        deps: Deps,
-        start_after: Option<String>,
-        limit: Option<u32>,
-    ) -> StdResult<TokensResponse> {
-        let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-        let start = start_after.map(|s| Bound::ExclusiveRaw(s.into()));
-
-        let tokens: StdResult<Vec<String>> = self
-            .tokens
-            .range(deps.storage, start, None, Order::Ascending)
-            .take(limit)
-            .map(|item| item.map(|(k, _)| k))
-            .collect();
-
-        Ok(TokensResponse { tokens: tokens? })
     }
 
     fn all_nft_info(
@@ -264,9 +273,6 @@ where
                 start_after,
                 limit,
             } => to_binary(&self.tokens(deps, owner, start_after, limit)?),
-            QueryMsg::AllTokens { start_after, limit } => {
-                to_binary(&self.all_tokens(deps, start_after, limit)?)
-            }
             QueryMsg::Approval {
                 token_id,
                 spender,

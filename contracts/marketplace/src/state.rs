@@ -19,7 +19,19 @@ pub struct Offering {
     pub contract: Addr,
     pub seller: Addr,
     pub list_price: Coin,
+    pub image_url:String
 }
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct OfferingResult {
+    pub id:String,
+    pub token_id: String,
+    pub contract: Addr,
+    pub seller: Addr,
+    pub list_price: Coin,
+    pub image_url:String
+}
+
 
 pub const STATE: Item<State> = Item::new("state");
 pub const OFFERINGS: Map<(&str,&str), Offering> = Map::new("offerings");

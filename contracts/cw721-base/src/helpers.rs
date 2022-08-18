@@ -141,13 +141,13 @@ impl Cw721Contract {
     }
 
     /// With enumerable extension
-    pub fn tokens<T: Into<String>>(
+    pub fn tokens<T: Into<String>, U: DeserializeOwned>(
         &self,
         querier: &QuerierWrapper,
         owner: T,
         start_after: Option<String>,
         limit: Option<u32>,
-    ) -> StdResult<TokensResponse> {
+    ) -> StdResult<TokensResponse<U>> {
         let req = QueryMsg::Tokens {
             owner: owner.into(),
             start_after,
@@ -156,24 +156,4 @@ impl Cw721Contract {
         self.query(querier, req)
     }
 
-    /// With enumerable extension
-    pub fn all_tokens(
-        &self,
-        querier: &QuerierWrapper,
-        start_after: Option<String>,
-        limit: Option<u32>,
-    ) -> StdResult<TokensResponse> {
-        let req = QueryMsg::AllTokens { start_after, limit };
-        self.query(querier, req)
-    }
-
-    /// returns true if the contract supports the metadata extension
-    pub fn has_metadata(&self, querier: &QuerierWrapper) -> bool {
-        self.contract_info(querier).is_ok()
-    }
-
-    /// returns true if the contract supports the enumerable extension
-    pub fn has_enumerable(&self, querier: &QuerierWrapper) -> bool {
-        self.tokens(querier, self.addr(), None, Some(1)).is_ok()
-    }
 }

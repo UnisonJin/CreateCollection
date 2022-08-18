@@ -37,5 +37,5 @@ fn main() {
         "NftInfoResponse",
     );
     export_schema(&schema_for!(NumTokensResponse), &out_dir);
-    export_schema(&schema_for!(TokensResponse), &out_dir);
+    export_schema_with_title(&schema_for!(TokensResponse<Extension>), &out_dir,"TokensResponse");
 }

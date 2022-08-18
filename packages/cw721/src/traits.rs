@@ -5,7 +5,7 @@ use serde::Serialize;
 use crate::query::ApprovalResponse;
 use crate::{
     AllNftInfoResponse, ApprovalsResponse, ContractInfoResponse, NftInfoResponse,
-    NumTokensResponse, OperatorsResponse, OwnerOfResponse, TokensResponse,
+    NumTokensResponse, OperatorsResponse, OwnerOfResponse, TokensResponse,TokensInfo,CollectionInfoResponse
 };
 use cosmwasm_std::{Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult};
 use cw_utils::Expiration;
@@ -102,6 +102,8 @@ where
 
     fn contract_info(&self, deps: Deps) -> StdResult<ContractInfoResponse>;
 
+    fn get_colletion_state(&self,deps: Deps) -> StdResult<CollectionInfoResponse>;
+
     fn num_tokens(&self, deps: Deps) -> StdResult<NumTokensResponse>;
 
     fn nft_info(&self, deps: Deps, token_id: String) -> StdResult<NftInfoResponse<T>>;
@@ -147,14 +149,7 @@ where
         owner: String,
         start_after: Option<String>,
         limit: Option<u32>,
-    ) -> StdResult<TokensResponse>;
-
-    fn all_tokens(
-        &self,
-        deps: Deps,
-        start_after: Option<String>,
-        limit: Option<u32>,
-    ) -> StdResult<TokensResponse>;
+    ) -> StdResult<TokensResponse<T>>;
 
     fn all_nft_info(
         &self,

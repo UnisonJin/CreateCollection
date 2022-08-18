@@ -129,5 +129,3 @@ as the `start_after` value in a future query.
 `Tokens{owner, start_after, limit}` - List all token_ids that belong to a given owner.
 Return type is `TokensResponse{tokens: Vec<token_id>}`.
 
-`AllTokens{start_after, limit}` - Requires pagination. Lists all token_ids controlled by 
-the contract.

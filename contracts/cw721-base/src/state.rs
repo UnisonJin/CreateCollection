@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 use cosmwasm_std::{Addr, BlockInfo, Decimal, StdResult, Storage, Uint128};
 
-use cw721::{ContractInfoResponse, CustomMsg, Cw721, Expiration};
+use cw721::{ContractInfoResponse, CustomMsg, Cw721, Expiration, CollectionInfo, MintInfo};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex};
 
 pub struct Cw721Contract<'a, T, C>
@@ -17,6 +17,8 @@ where
     pub admin: Item<'a, Addr>,
 
     pub token_count: Item<'a, u64>,
+    pub collection_info : Item<'a, CollectionInfo>,
+    pub mint_info : Item<'a, MintInfo>,
     /// Stored as (granter, operator) giving operator full control over granter's account
     pub operators: Map<'a, (&'a Addr, &'a Addr), Expiration>,
     pub tokens: IndexedMap<'a, &'a str, TokenInfo<T>, TokenIndexes<'a, T>>,
@@ -45,6 +47,8 @@ where
             "operators",
             "tokens",
             "tokens__owner",
+            "collection_info_key",
+            "config_mint_info"
         )
     }
 }
@@ -57,17 +61,19 @@ where
         contract_key: &'a str,
         minter_key: &'a str,
         admin_key: &'a str,
-
         token_count_key: &'a str,
         operator_key: &'a str,
         tokens_key: &'a str,
         tokens_owner_key: &'a str,
+        collection_info_key: &'a str,
+        mint_info_key: &'a str
     ) -> Self {
         let indexes = TokenIndexes {
             owner: MultiIndex::new(token_owner_idx, tokens_key, tokens_owner_key),
         };
         Self {
             contract_info: Item::new(contract_key),
+            collection_info : Item::new(collection_info_key),
             minter: Item::new(minter_key),
             admin: Item::new(admin_key),
 
@@ -75,6 +81,7 @@ where
             operators: Map::new(operator_key),
             tokens: IndexedMap::new(tokens_key, indexes),
             _custom_response: PhantomData,
+             mint_info:Item::new(mint_info_key)
         }
     }
 

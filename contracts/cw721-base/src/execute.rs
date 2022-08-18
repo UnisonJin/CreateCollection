@@ -23,20 +23,24 @@ where
         &self,
         deps: DepsMut,
         _env: Env,
-        _info: MessageInfo,
+        info: MessageInfo,
         msg: InstantiateMsg,
     ) -> StdResult<Response<C>> {
         set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-        let info = ContractInfoResponse {
+        let contract_info = ContractInfoResponse {
             name: msg.name,
             symbol: msg.symbol,
         };
-        self.contract_info.save(deps.storage, &info)?;
-        let minter = deps.api.addr_validate(&msg.minter)?;
+        self.contract_info.save(deps.storage, &contract_info)?;
         let admin = deps.api.addr_validate(&msg.admin)?;
 
-        self.minter.save(deps.storage, &minter)?;
+        self.minter.save(deps.storage, &info.sender)?;
+        if msg.mint_info != None{
+            self.mint_info.save(deps.storage, &(msg.mint_info.unwrap()))?;
+        }
+        self.collection_info.save(deps.storage, &msg.collection_info)?;
+
         self.admin.save(deps.storage, &admin)?;
         Ok(Response::default())
     }
