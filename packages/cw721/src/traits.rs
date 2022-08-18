@@ -5,7 +5,7 @@ use serde::Serialize;
 use crate::query::ApprovalResponse;
 use crate::{
     AllNftInfoResponse, ApprovalsResponse, ContractInfoResponse, NftInfoResponse,
-    NumTokensResponse, OperatorsResponse, OwnerOfResponse, TokensResponse,TokensInfo,CollectionInfoResponse
+    NumTokensResponse, OperatorsResponse, OwnerOfResponse, TokensResponse,TokensInfo,CollectionInfoResponse,Royalty
 };
 use cosmwasm_std::{Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult};
 use cw_utils::Expiration;

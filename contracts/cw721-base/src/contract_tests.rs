@@ -34,7 +34,8 @@ fn setup_contract(deps: DepsMut<'_>) -> Cw721Contract<'static, Extension, Empty>
             description:None,
             is_launch : None,
         },
-        mint_info:None
+        mint_info:None,
+        royalty_info:None
     };
     let info = mock_info("creator", &[]);
     let res = contract.instantiate(deps, mock_env(), info, msg).unwrap();
@@ -63,7 +64,8 @@ fn proper_instantiation() {
             description:None,
             is_launch : None,
         },
-        mint_info:None
+        mint_info:None,
+        royalty_info:None
     };
     let info = mock_info("creator", &[]);
 

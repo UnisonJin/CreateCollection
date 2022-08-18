@@ -30,18 +30,21 @@ where
        let collection_info =  self.collection_info.load(deps.storage)?;
        let mint_info = self.mint_info.may_load(deps.storage)?;
        let minter = self.minter.load(deps.storage)?;
+       let royaty_info = self.royalty_info.load(deps.storage)?;
        if mint_info!=None{
             Ok( CollectionInfoResponse{
                     collection_info:collection_info,
                     mint_info:mint_info,
-                    minter:minter.to_string()
+                    minter:minter.to_string(),
+                    royalty_info:royaty_info
             })
         }
        else{
          Ok( CollectionInfoResponse{
                     collection_info:collection_info,
                     mint_info:None,
-                    minter:minter.to_string()
+                    minter:minter.to_string(),
+                    royalty_info:royaty_info
             })
        }
     }
