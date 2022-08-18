@@ -230,7 +230,7 @@ fn execute_mint(
                 token_uri: Some([[collection_info.base_token_uri,mint_index.to_string()].join(""),"json".to_string()].join(".")),
                 extension:  Extension{
                     minter:Some(sender.clone()),
-                    image_url:Some([[collection_info.base_image_uri,mint_index.to_string()].join(""),"json".to_string()].join("."))
+                    image_url:Some([[collection_info.base_image_uri,mint_index.to_string()].join(""),"png".to_string()].join("."))
                 }
             }))?,
             funds: vec![],

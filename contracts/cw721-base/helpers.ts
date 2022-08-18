@@ -227,7 +227,6 @@ interface CW721Instance {
   approvedForAll: (owner: string, include_expired?: boolean, start_after?: string, limit?: number) => Promise<Operators>
   numTokens: () => Promise<Count>
   tokens: (owner: string, startAfter?: string, limit?: number) => Promise<TokensResponse>
-  allTokens: (startAfter?: string, limit?: number) => Promise<TokensResponse>
 
   // actions
   mint: (senderAddress: string, tokenId: TokenId, owner: string, name: string, level: number, description?: string, image?: string) => Promise<string>
@@ -303,10 +302,7 @@ export const CW721 = (client: SigningCosmWasmClient, fees: Options['fees']): CW7
       return client.queryContractSmart(contractAddress, { tokens: { owner, start_after, limit } });
     }
 
-    const allTokens = async (start_after?: string, limit?: number): Promise<TokensResponse> => {
-      return client.queryContractSmart(contractAddress, { all_tokens: { start_after, limit } });
-    }
-
+    
     // actions 
     const mint = async (senderAddress: string, token_id: TokenId, owner: string, name: string, level: number, description?: string, image?: string): Promise<string> => {
       const result = await client.execute(senderAddress, contractAddress, { mint: { token_id, owner, name, level, description, image } }, fees.exec);
@@ -358,7 +354,6 @@ export const CW721 = (client: SigningCosmWasmClient, fees: Options['fees']): CW7
       approvedForAll,
       numTokens,
       tokens,
-      allTokens,
       mint,
       transferNft,
       sendNft,

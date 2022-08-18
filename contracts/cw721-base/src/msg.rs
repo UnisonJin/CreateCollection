@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::Binary;
-use cw721::Expiration;
+use cw721::{Expiration,CollectionInfo,MintInfo};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -14,9 +14,12 @@ pub struct InstantiateMsg {
     /// The minter is the only one who can create new NFTs.
     /// This is designed for a base NFT that is controlled by an external program
     /// or contract. You will likely replace this with custom logic in custom NFTs
-    pub minter: String,
 
     pub admin: String,
+
+    pub collection_info : CollectionInfo,
+
+    pub mint_info : Option<MintInfo>
 }
 
 /// This is like Cw721ExecuteMsg but we add a Mint command for an owner
@@ -140,14 +143,6 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
-    /// With Enumerable extension.
-    /// Requires pagination. Lists all token_ids controlled by the contract.
-    /// Return type: TokensResponse.
-    AllTokens {
-        start_after: Option<String>,
-        limit: Option<u32>,
-    },
-
     // Return the minter
     Minter {},
     Admin {},

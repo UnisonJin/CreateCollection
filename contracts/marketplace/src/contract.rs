@@ -6,10 +6,10 @@ use cosmwasm_std::{
 use crate::cw721::{Cw721ExecuteMsg, Cw721ReceiveMsg};
 use crate::error::ContractError;
 use crate::msg::{
-     ExecuteMsg, FeeResponse, InstantiateMsg,  QueryMsg,
+    ExecuteMsg, FeeResponse, InstantiateMsg,  QueryMsg,
     SellNft,
 };
-use crate::state::{get_fund, increment_offerings, Offering, State, OFFERINGS, STATE, CollectionInfo, COLLECTIONINFO, SALEHISTORY,SaleHistoryInfo, self};
+use crate::state::{get_fund, increment_offerings, Offering, State, OFFERINGS, STATE, CollectionInfo, COLLECTIONINFO, SALEHISTORY,SaleHistoryInfo, self, OfferingResult};
 use cw2::set_contract_version;
 use std::ops::{Mul, Sub};
 
@@ -245,6 +245,7 @@ pub fn execute_receive_nft(
         token_id: wrapper.token_id,
         seller: deps.api.addr_validate(&wrapper.sender)?,
         list_price: msg.list_price.clone(),
+        image_url:msg.image_url
     };
     OFFERINGS.save(deps.storage, (&nft_address,&id), &off)?;
 
@@ -339,8 +340,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetStateInfo{} => to_binary(&query_state(deps)?),
         QueryMsg::GetCollectionInfo { address } => to_binary(&query_collection_info(deps,address)?),
         QueryMsg::GetFee {} => to_binary(&query_fee(deps)?),
-        QueryMsg::GetOffers { page_num, count,address }  => {
-            to_binary(&query_all(deps,  page_num, count,address )?)
+        QueryMsg::GetOffers { page_num, page_count,address }  => {
+            to_binary(&query_all(deps,  page_num, page_count,address )?)
         },
         QueryMsg::GetSaleHistory { page_num, count,address }  => {
             to_binary(&query_sale_history(deps,  page_num, count,address )?)
@@ -366,23 +367,30 @@ fn query_fee(deps: Deps) -> StdResult<FeeResponse> {
 fn query_all(
     deps: Deps,
     page_num: u32,
-    count: u32,
+    page_count: u32,
     address:String
-) -> StdResult<Vec<Offering>> {
+) -> StdResult<Vec<OfferingResult>> {
     if page_num == 0 {
-        let offerings:Vec<Offering> = Vec::new(); 
+        let offerings:Vec<OfferingResult> = Vec::new(); 
         Ok(offerings)
     }
     else{
-        let mut offerings:Vec<Offering> = Vec::new(); 
-        for i in (page_num-1)*count+1 .. page_num*count+1{
+        let mut offerings:Vec<OfferingResult> = Vec::new(); 
+        for i in (page_num-1)*page_count+1 .. page_num*page_count+1{
             let offering = OFFERINGS.may_load(deps.storage, (&address,&i.to_string()))?;
             if offering == None{
                 continue;
             }
             else{
                 let offering = offering.unwrap();
-                offerings.push(offering); 
+                offerings.push(OfferingResult{
+                    id: i.to_string(),
+                    token_id:offering.token_id,
+                    contract:offering.contract,
+                    seller:offering.seller,
+                    list_price:offering.list_price,
+                    image_url:offering.image_url
+                }); 
             }
         }
         Ok(offerings)
@@ -460,6 +468,7 @@ mod tests {
 
         let sell_msg = SellNft {
             list_price: coin(1000, "earth"),
+            image_url:"image".to_string()
         };
 
         let msg = ExecuteMsg::ReceiveNft(Cw721ReceiveMsg {
@@ -482,6 +491,7 @@ mod tests {
 
         let sell_msg = SellNft {
             list_price: coin(1000, "earth"),
+            image_url:"image".to_string()
         };
 
         let msg = ExecuteMsg::ReceiveNft(Cw721ReceiveMsg {

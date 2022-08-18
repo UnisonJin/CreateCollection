@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use cosmwasm_std::{Uint128,Coin};
 
 use cw_utils::Expiration;
 
@@ -62,13 +63,7 @@ pub enum Cw721QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
-    /// With Enumerable extension.
-    /// Requires pagination. Lists all token_ids controlled by the contract.
-    /// Return type: TokensResponse.
-    AllTokens {
-        start_after: Option<String>,
-        limit: Option<u32>,
-    },
+   
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -114,6 +109,13 @@ pub struct ContractInfoResponse {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct CollectionInfoResponse {
+  pub collection_info : CollectionInfo,
+  pub mint_info : Option<MintInfo>,
+  pub minter : String
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct NftInfoResponse<T> {
     /// Universal resource identifier for this NFT
     /// Should point to a JSON file that conforms to the ERC721
@@ -132,9 +134,56 @@ pub struct AllNftInfoResponse<T> {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-pub struct TokensResponse {
+pub struct TokensResponse<T> {
     /// Contains all token_ids in lexicographical ordering
     /// If there are more than `limit`, use `start_from` in future queries
     /// to achieve pagination.
-    pub tokens: Vec<String>,
+    pub tokens: Vec<TokensInfo<T>>,
+}
+
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct TokensInfo<T> {
+    /// Contains all token_ids in lexicographical ordering
+    /// If there are more than `limit`, use `start_from` in future queries
+    /// to achieve pagination.
+    pub token_id: String,
+    pub nft_info: NftInfoResponse<T>
+}
+
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct SocialLinkType {
+    pub tool: String,
+    pub link: String
+}
+
+
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct CollectionInfo {
+    pub title: Option<String>,
+    pub creator:Option<String>,
+    pub image_url:Option<String>,
+    pub background_url:Option<String>,
+    pub logo_url:Option<String>,
+    pub collection_id : Option<String>,
+    pub metadata_url:Option<String>,
+    pub social_links:Option<Vec<SocialLinkType>>,
+    pub description:Option<String>,
+    pub is_launch : Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct MintInfo {
+    pub base_token_uri: String,
+    pub base_image_uri:String,
+    pub total_supply: Uint128,
+    pub start_mint_time: u64,
+    pub per_address_limit: Uint128,
+    pub public_price: Coin,
+    pub private_price:Coin,
+    pub mint_flag:bool,
+    pub is_public_mint:bool,
+    pub nft_base_name:String
 }

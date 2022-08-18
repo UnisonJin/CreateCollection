@@ -36,6 +36,7 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub struct SellNft {
     pub list_price: Coin,
+    pub image_url:String
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -49,7 +50,7 @@ pub enum QueryMsg {
     /// Return type: OffersResponse.
     GetOffers {
         page_num: u32,
-        count: u32,
+        page_count: u32,
         address:String
     },
     GetSaleHistory{
