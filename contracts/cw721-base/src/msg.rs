@@ -150,6 +150,7 @@ pub enum QueryMsg {
     // Return the minter
     Minter {},
     Admin {},
+    GetCollectionState{}
 }
 
 /// Shows who can mint these tokens
