@@ -240,6 +240,7 @@ where
         match msg {
             QueryMsg::Minter {} => to_binary(&self.minter(deps)?),
             QueryMsg::Admin {} => to_binary(&self.admin(deps)?),
+            QueryMsg::GetCollectionState {  }  => to_binary(&self.get_colletion_state(deps)?),
             QueryMsg::ContractInfo {} => to_binary(&self.contract_info(deps)?),
             QueryMsg::NftInfo { token_id } => to_binary(&self.nft_info(deps, token_id)?),
             QueryMsg::OwnerOf {
