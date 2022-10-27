@@ -19,7 +19,7 @@ where
     pub token_count: Item<'a, u64>,
     pub collection_info : Item<'a, CollectionInfo>,
     pub mint_info : Item<'a, MintInfo>,
-    pub royalty_info : Item<'a,Option<Royalty> >,
+    pub royalty_info : Item<'a,Royalty >,
     /// Stored as (granter, operator) giving operator full control over granter's account
     pub operators: Map<'a, (&'a Addr, &'a Addr), Expiration>,
     pub tokens: IndexedMap<'a, &'a str, TokenInfo<T>, TokenIndexes<'a, T>>,
@@ -118,6 +118,9 @@ pub struct TokenInfo<T> {
     /// Metadata JSON Schema
     pub token_uri: Option<String>,
 
+    pub content_type: String,
+
+    pub created_time: u64,
     /// You can add any custom metadata here when you extend cw721-base
     pub extension: T,
 }

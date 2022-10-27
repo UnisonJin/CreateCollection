@@ -10,8 +10,8 @@ pub struct InstantiateMsg {
     pub name: String,
     /// Symbol of the NFT contract
     pub symbol: String,
-
     /// The minter is the only one who can create new NFTs.
+    pub minter:Option<String>,
     /// This is designed for a base NFT that is controlled by an external program
     /// or contract. You will likely replace this with custom logic in custom NFTs
 
@@ -21,7 +21,7 @@ pub struct InstantiateMsg {
 
     pub mint_info : Option<MintInfo>,
 
-    pub royalty_info : Option<Royalty>
+    pub royalty_info : Royalty
 }
 
 /// This is like Cw721ExecuteMsg but we add a Mint command for an owner
@@ -69,7 +69,7 @@ pub enum ExecuteMsg<T> {
     /// Update admin
     UpdateAdmin { admin: String },
 
-    ChangeRoyalty {royalty: Option<Royalty>}
+    ChangeRoyalty {royalty: Royalty }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -82,6 +82,8 @@ pub struct MintMsg<T> {
     /// Should point to a JSON file that conforms to the ERC721
     /// Metadata JSON Schema
     pub token_uri: Option<String>,
+
+    pub content_type: String,
     /// Any custom extension used by this contract
     pub extension: T,
 }
@@ -167,4 +169,5 @@ pub struct AdminResponse {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct Metadata {
     pub image_url: String,
+    pub minter: String
 }

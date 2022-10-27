@@ -105,7 +105,7 @@ pub struct NumTokensResponse {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct ContractInfoResponse {
     pub name: String,
-    pub symbol: String,
+    pub symbol: String
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -113,7 +113,7 @@ pub struct CollectionInfoResponse {
   pub collection_info : CollectionInfo,
   pub mint_info : Option<MintInfo>,
   pub minter : String,
-  pub royalty_info : Option<Royalty>
+  pub royalty_info : Royalty
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -122,6 +122,10 @@ pub struct NftInfoResponse<T> {
     /// Should point to a JSON file that conforms to the ERC721
     /// Metadata JSON Schema
     pub token_uri: Option<String>,
+
+    pub content_type: String,
+
+    pub created_time: u64,
     /// You can add any custom metadata here when you extend cw721-base
     pub extension: T,
 }
@@ -163,16 +167,10 @@ pub struct SocialLinkType {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct CollectionInfo {
-    pub title: Option<String>,
-    pub creator:Option<String>,
-    pub image_url:Option<String>,
-    pub background_url:Option<String>,
-    pub logo_url:Option<String>,
-    pub collection_id : Option<String>,
-    pub metadata_url:Option<String>,
-    pub social_links:Option<Vec<SocialLinkType>>,
-    pub description:Option<String>,
-    pub is_launch : Option<bool>,
+    pub title: String,
+    pub background_url:String,
+    pub logo_url:String,
+    pub description:String,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

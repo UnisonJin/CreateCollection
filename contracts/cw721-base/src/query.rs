@@ -59,6 +59,8 @@ where
         Ok(NftInfoResponse {
             token_uri: info.token_uri,
             extension: info.extension,
+            content_type: info.content_type,
+            created_time: info.created_time
         })
     }
 
@@ -189,8 +191,11 @@ where
         for  token_id in token_ids{
             let info = self.tokens.load(deps.storage, &token_id)?;
             tokens.push(TokensInfo { token_id: token_id, nft_info: NftInfoResponse {
-                 token_uri: info.token_uri,
-                extension: info.extension } })
+                token_uri: info.token_uri,
+                extension: info.extension,
+                content_type: info.content_type,
+                created_time: info.created_time 
+            } })
         }
 
         Ok(TokensResponse { tokens })
@@ -212,6 +217,8 @@ where
             info: NftInfoResponse {
                 token_uri: info.token_uri,
                 extension: info.extension,
+                content_type: info.content_type,
+                created_time: info.created_time
             },
         })
     }

@@ -20,4 +20,8 @@ pub enum ContractError {
 
     #[error("Approval not found for: {spender}")]
     ApprovalNotFound { spender: String },
+
+    
+    #[error("Invalid content type")]
+    InvalidContentType {  }
 }

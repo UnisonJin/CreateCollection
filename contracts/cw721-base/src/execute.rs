@@ -35,22 +35,23 @@ where
         self.contract_info.save(deps.storage, &contract_info)?;
         let admin = deps.api.addr_validate(&msg.admin)?;
 
-        self.minter.save(deps.storage, &info.sender)?;
+        if msg.minter != None{      
+            self.minter.save(deps.storage, &deps.api.addr_validate(&msg.minter.unwrap())?)?;
+        }
+        else{
+              self.minter.save(deps.storage, &info.sender)?
+        }
         if msg.mint_info != None{
             self.mint_info.save(deps.storage, &(msg.mint_info.unwrap()))?;
         }
         self.collection_info.save(deps.storage, &msg.collection_info)?;
 
-        if msg.royalty_info != None{
-            let royalty_info = msg.royalty_info.clone().unwrap();
-            if royalty_info.royalty_rate >= Decimal::one(){
-                return Err(ContractError::WrongRoyaltyRate {  });
-            }
-            self.royalty_info.save(deps.storage, &msg.royalty_info)?;
+        let royalty_info = msg.royalty_info.clone();
+        if royalty_info.royalty_rate >= Decimal::one(){
+            return Err(ContractError::WrongRoyaltyRate {  });
         }
-        else{ 
-            self.royalty_info.save(deps.storage, &None)?;
-        }
+        self.royalty_info.save(deps.storage, &msg.royalty_info)?;
+        
         self.admin.save(deps.storage, &admin)?;
         Ok(Response::default())
     }
@@ -102,7 +103,7 @@ where
     pub fn mint(
         &self,
         deps: DepsMut,
-        _env: Env,
+        env: Env,
         info: MessageInfo,
         msg: MintMsg<T>,
     ) -> Result<Response<C>, ContractError> {
@@ -112,26 +113,34 @@ where
             return Err(ContractError::Unauthorized {});
         }
 
+        if msg.content_type != "ai_nft".to_string() && msg.content_type != "language_processing".to_string() && msg.content_type != "syntetic_media".to_string(){
+            return Err(ContractError::InvalidContentType {  })
+        }
         // create the token
         let token = TokenInfo {
             owner: deps.api.addr_validate(&msg.owner)?,
             approvals: vec![],
             token_uri: msg.token_uri,
             extension: msg.extension,
+            content_type: msg.content_type,
+            created_time: env.block.time.seconds()
         };
+
         self.tokens
             .update(deps.storage, &msg.token_id, |old| match old {
                 Some(_) => Err(ContractError::Claimed {}),
                 None => Ok(token),
-            })?;
+        })?;
 
         self.increment_tokens(deps.storage)?;
 
         Ok(Response::new()
-            .add_attribute("action", "mint")
+            .add_attribute("human_nft_action", "human_marketplace_mint")
             .add_attribute("minter", info.sender)
             .add_attribute("owner", msg.owner)
-            .add_attribute("token_id", msg.token_id))
+            .add_attribute("token_id", msg.token_id)
+            .add_attribute("time",env.block.time.seconds().to_string())
+            .add_attribute("collection", env.contract.address))
     }
 }
 
@@ -460,7 +469,7 @@ where
         deps: DepsMut,
         _env: Env,
         info: MessageInfo,
-        royalty: Option<Royalty>,
+        royalty: Royalty,
     ) -> Result<Response<C>, ContractError> {
         let admin = self.admin.load(deps.storage)?;
 
@@ -468,17 +477,12 @@ where
             return Err(ContractError::Unauthorized {});
         }
 
-         if royalty != None{
-            let royalty_info = royalty.clone().unwrap();
-            if royalty_info.royalty_rate >= Decimal::one(){
-                return Err(ContractError::WrongRoyaltyRate {  });
-            }
-            self.royalty_info.save(deps.storage, &royalty)?;
+        let royalty_info = royalty.clone();
+        if royalty_info.royalty_rate >= Decimal::one(){
+            return Err(ContractError::WrongRoyaltyRate {  });
         }
-        else{ 
-            self.royalty_info.save(deps.storage, &None)?;
-        }
-      
+        self.royalty_info.save(deps.storage, &royalty)?;
+        
         // self.minter.save(deps.storage, &new_minter_addr)?;
         Ok(Response::new().add_attribute("action", "change royalty"))
     }
