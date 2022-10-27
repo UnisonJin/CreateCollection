@@ -26,6 +26,9 @@ pub enum ContractError {
 
     #[error("Invalid reply ID")]
     InvalidReplyID {},
+    
+    #[error("Invalid content type")]
+    InvalidContentType {},
 
     #[error("NFT collection contract initiate is failed")]
     InstantiateCw721Error {},

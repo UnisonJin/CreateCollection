@@ -12,7 +12,7 @@ pub use crate::state::{Cw721Contract};
 use cosmwasm_std::Empty;
 
 // This is a simple type to let us handle empty extensions
-pub type Extension = Option<Metadata>;
+pub type Extension = Metadata;
 
 #[cfg(not(feature = "library"))]
 pub mod entry {
