@@ -13,5 +13,8 @@ pub enum ContractError {
     InvalidReplyID {},
 
     #[error("Instantiate Cw721 Error")]
-    InstantiateCw721Error{}
+    InstantiateCw721Error{},
+
+    #[error("Cannot migrate from different contract type: {previous_contract}")]
+    CannotMigrate { previous_contract: String },
  }

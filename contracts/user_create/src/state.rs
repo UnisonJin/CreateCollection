@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 pub const CONFIG : Item<State> = Item::new("config_state");
 pub const CONTRACTLIST : Map<&str, CollectionDetailInfo> = Map::new("config_user_info");
+pub const COLLECTION: Map<&str, bool> = Map::new("validate_collection");
 
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
