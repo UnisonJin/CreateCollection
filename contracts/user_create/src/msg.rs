@@ -24,7 +24,8 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
       GetStateInfo{},
-      GetCollections{id:Vec<String>}
+      GetCollections{id:Vec<String>},
+      CheckCollection{address: String}
 }
 
 
@@ -45,3 +46,7 @@ pub enum Cw721BaseQueryMsg {
 pub struct AdminResponse {
     pub admin: String,
 }
+
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct MigrateMsg {}

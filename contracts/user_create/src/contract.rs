@@ -1,19 +1,18 @@
 use cosmwasm_std::{
     entry_point, to_binary,    Deps, DepsMut,Binary,SubMsg,QueryRequest,WasmQuery,
-    Env, MessageInfo, Response, StdResult, WasmMsg, ReplyOn,Reply
+    Env, MessageInfo, Response, StdResult, WasmMsg, ReplyOn,Reply, StdError, Empty
 };
-
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, Cw721BaseQueryMsg, AdminResponse, MinterQueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, Cw721BaseQueryMsg, AdminResponse, MinterQueryMsg, MigrateMsg};
 use crate::state::{
-    CONFIG,State,  CollectionInfoMessage, Cw721InitMessage, CONTRACTLIST, CollectionDetailInfo, MintInitMsg
+    CONFIG,State,  CollectionInfoMessage, Cw721InitMessage, CONTRACTLIST, CollectionDetailInfo, MintInitMsg, COLLECTION
 };
 
-use cw2::{set_contract_version};
+use cw2::{set_contract_version, get_contract_version};
 use cw_utils::{parse_reply_instantiate_data};
 
 
-const CONTRACT_NAME: &str = "crates.io:create_collection";
+const CONTRACT_NAME: &str = "crates.io:human_create_collection";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const INSTANTIATE_CW721_REPLY_ID : u64 = 1;
@@ -255,6 +254,8 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
                             is_rand:false,
                             creator:admin
                         })?;
+
+                        COLLECTION.save(deps.storage, &res.contract_address, &true)?;
                         
                         CONFIG.update(deps.storage, |mut state|-> StdResult<_>{
                             state.collection_count = state.collection_count + 1;
@@ -272,16 +273,18 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
                 match reply {
                     Ok(res) => {
                         let state = CONFIG.load(deps.storage)?;       
-                        let address = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+                        let address: String = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
                                 contract_addr: res.contract_address,
                                 msg: to_binary(&MinterQueryMsg::GetCollectionAddress {  })?,
                         }))?;
                        
                         CONTRACTLIST.save(deps.storage, &(state.collection_count + 1 ).to_string(), &CollectionDetailInfo{
-                                    address:address,
+                                    address:address.clone(),
                                     is_rand:true,
                                     creator:state.admin
                         })?;
+
+                        COLLECTION.save(deps.storage, &address, &true)?;
                                 
                         CONFIG.update(deps.storage, |mut state|-> StdResult<_>{
                             state.collection_count = state.collection_count + 1;
@@ -305,7 +308,8 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetStateInfo {} => to_binary(& query_state_info(deps)?),
-        QueryMsg::GetCollections { id }  => to_binary(& query_collections(deps,id)?)
+        QueryMsg::GetCollections { id }  => to_binary(& query_collections(deps,id)?),
+        QueryMsg::CheckCollection { address } => to_binary(& query_check_collection(deps, address)?)
     }
 }
 
@@ -327,4 +331,28 @@ pub fn query_collections(deps:Deps, id:Vec<String>) -> StdResult<Vec<CollectionD
    }
    Ok(result)
 }
+
+pub fn query_check_collection(deps:Deps, address:String) -> StdResult<bool>{
+    let is_exist = COLLECTION.may_load(deps.storage, &address)?;
+    match is_exist{
+        Some(_is_exist) => {
+            Ok(true)
+        }
+        None => Ok(false)
+    }
+
+}
+
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    let version = get_contract_version(deps.storage)?;
+    if version.contract != CONTRACT_NAME {
+        return Err(ContractError::CannotMigrate {
+            previous_contract: version.contract,
+        });
+    }
+    Ok(Response::default())
+}
+
 
